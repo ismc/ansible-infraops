@@ -1,0 +1,9 @@
+---
+- name: Create the VRF
+  ios_config:
+    lines:
+      - "vrf definition {{ vrf_list_item.name }}"
+    provider: "{{ cli }}"
+  with_items: "{{ vrf_list }}"
+  loop_control:
+    loop_var: vrf_list_item

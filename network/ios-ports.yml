@@ -1,0 +1,33 @@
+---
+- name: Set the interface description
+  ios_config:
+    lines:
+      - "description {{ port_list_item.description }}"
+    provider: "{{ cli }}"
+    parents: "interface {{ port_list_item.interface }}"
+  with_items: "{{ port_list }}"
+  when: port_list_item.description is defined
+  loop_control:
+    loop_var: port_list_item
+
+- name: Set the VLAN
+  ios_config:
+    lines:
+      - "encapsulation dot1Q {{ port_list_item.vlan }}"
+    provider: "{{ cli }}"
+    parents: "interface {{ port_list_item.interface }}"
+  with_items: "{{ port_list }}"
+  when: port_list_item.vlan is defined
+  loop_control:
+    loop_var: port_list_item
+    
+- name: Set the IP address
+  ios_config:
+    lines:
+      - "ip address {{ port_list_item.ipaddr | ipaddr('address') }} {{ port_list_item.ipaddr | ipaddr('netmask') }}"
+    provider: "{{ cli }}"
+    parents: "interface {{ port_list_item.interface }}"
+  with_items: "{{ port_list }}"
+  when: port_list_item.ipaddr is defined
+  loop_control:
+    loop_var: port_list_item

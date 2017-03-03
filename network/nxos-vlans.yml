@@ -1,0 +1,10 @@
+---
+- name: Creating vlans
+  nxos_vlan:
+    host: "{{ inventory_hostname }}"
+    username: "{{ admin_username }}"
+    password: "{{ admin_password }}"
+    transport: cli
+    vlan_id: "{{ item.id }}"
+    name: "{{ item.name }}"
+  with_items: "{{ vlan_data | default([]) }}"

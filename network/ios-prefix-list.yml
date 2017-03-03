@@ -1,0 +1,11 @@
+---
+
+- name: Add Prefix List Items
+  ios_config:
+    lines:
+      - "description {{ prefix_list_item.description }}"
+    provider: "{{ cli }}"
+  with_items: "{{ prefix_list }}"
+  when: prefix_list_item.description is defined
+  loop_control:
+    loop_var: list_item

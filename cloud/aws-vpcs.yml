@@ -1,0 +1,14 @@
+---
+- name: Create VPC
+  ec2_vpc_net:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    name: "{{ tenant_list_item.name }}"
+    cidr_block: "{{ tenant_list_item.cidr }}"
+    region: us-east-2
+    tags:
+      tenant: "{{ tenant_list_item.name }}"
+    tenancy: dedicated
+  with_items: "{{ tenant_list | default([]) }}"
+  loop_control:
+    loop_var: tenant_list_item

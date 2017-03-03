@@ -1,0 +1,35 @@
+---
+- name: Create the projects
+  os_project:
+    auth:
+      auth_url: "{{ os_auth_url }}"
+      username: "{{ os_username }}"
+      password: "{{ os_password }}"
+      project_name: "{{ os_project_name }}"
+    state: "{{ tenant_list_item.state | default('present') }}"
+    name: "{{ tenant_list_item.name }}"
+    description: "{{ tenant_list_item.description | default(omit) }}"
+    domain_id: "{{ tenant_list_item.domain_id | default(omit) }}"
+    enabled: True
+    validate_certs: False
+  with_items: "{{ tenant_list | default([]) }}"
+  loop_control:
+    loop_var: tenant_list_item
+      
+- name: Add users to the project
+  os_user_role:
+    auth:
+      auth_url: "{{ os_auth_url }}"
+      username: "{{ os_username }}"
+      password: "{{ os_password }}"
+      project_name: "{{ os_project_name }}"      
+    user: "{{ tenant_list_item.1 }}"
+    role: _member_
+    project: "{{ tenant_list_item.0.name }}"
+    validate_certs: False
+  with_subelements:
+    - "{{ tenant_list | default([]) }}"
+    - users
+    - skip_missing: yes
+  loop_control:
+    loop_var: tenant_list_item  

@@ -1,0 +1,6 @@
+[ucso2-tor]
+nexus-sw03-mgmt
+nexus-sw04-mgmt
+
+[ucso-tors:children]
+ucso2-tor

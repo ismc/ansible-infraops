@@ -1,0 +1,58 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - wopr-vault.yml
+  vars:
+    regions:
+      wopr:
+        provider: os
+        project: wopr-test
+        description: Awesome
+        users: ['stevenca']
+        networks:
+          - { cidr: 172.17.1.0/24, name: wopr-net1 }
+      us-east-2:
+        provider: aws
+        project: wopr-test
+        cidr: 172.17.0.0/16
+        networks:
+          - { cidr: 172.17.2.0/24, az: us-east-2a }
+          - { cidr: 172.17.3.0/24, az: us-east-2b }
+        vpns:
+          - { name: wopr-vpn1, type: ipsec.1, ip: 192.133.160.227, asn: 65002 }
+      
+  tasks:
+    - include: ../cloud/{{ regions[item].provider }}-region.yml tenant_name=wopr region_name="{{ item }}" region_info="{{ regions[item] }}"
+      with_items: "{{ regions.keys() | default([]) }}"
+      tags:
+        - cloud
+        
+- hosts: wopr-gw
+  gather_facts: yes
+  connection: local
+  vars_files:
+    - wopr-vault.yml
+  vars:
+    cli:
+      host: "{{ inventory_hostname }}"
+      username: "{{ net_username }}"
+      password: "{{ net_password }}"
+      transport: cli
+    wopr_ports:
+      wopr-gw:
+        - { description: "WOPR-ACI-port", interface: "GigabitEthernet0/0/0.2000", vrf: wopr-foo, vlan: 2000, ipaddr: 192.133.165.11/24 }
+    wopr_vrfs:
+      - { name: wopr-foo }
+
+        
+  tasks:
+        
+    - include: ../network/ios-ports.yml port_list="{{ wopr_ports[inventory_hostname] }}"
+      tags:
+        - router
+        
+    - include: ../network/ios-vrf.yml vrf_list="{{ wopr_vrfs }}"
+      tags:
+        - router

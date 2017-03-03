@@ -1,0 +1,28 @@
+---
+- hosts: cil-fw
+  gather_facts: no
+  connection: local
+  vars_files:
+    - ./cil-vault.yml
+    - ./fw-vars.yml
+  vars:
+    cli:
+      host: "{{ inventory_hostname }}"
+      username: "{{ cil_admin_username }}"
+      password: "{{ cil_admin_password }}"
+      transport: cli
+
+  tasks:
+    - name: Get Version
+      asa_command:
+        commands:
+          - show version
+        context: system
+        provider: "{{ cli }}"
+        
+    - name: Insert ASA ACL
+      asa_config:
+        lines:
+          - "access-list {{ item.rule }} extended {{ item.action }}{{ item.proto }}{{ item.src_ip | ipaddr('network') }}{{ item.src_ip | ipaddr('network') }}{{ item.dst_ip | ipaddr('network') }}{{ item.dst_ip | ipaddr('network') }} eq {{ item.dst_port }}"
+        provider: "{{ cli }}"
+      with_items: "{{ fw_rules }}"

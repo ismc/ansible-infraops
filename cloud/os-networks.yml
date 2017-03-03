@@ -1,0 +1,42 @@
+---
+- name: Create the tenant networks
+  os_network:
+    auth:
+      auth_url: "{{ os_auth_url }}"
+      username: "{{ os_username }}"
+      password: "{{ os_password }}"
+      project_name: "{{ os_project_name }}"
+    state: present
+    shared: false
+    provider_network_type: vlan
+    name: "{{ network_list_item.name | default(cidr) }}"
+    external: false
+    project: "{{ tenant_info.name }}"
+    validate_certs: False
+  register: tenant_network
+  with_items: "{{ tenant_info.networks | default([]) }}"
+  when: network_list_item.region == os_region
+  loop_control:
+    loop_var: network_list_item
+    
+- set_fact:
+    vlan_id: "{{ tenant_network.results[0].network['provider:segmentation_id'] }}"
+    
+- name: Create the tenant subnets
+  os_subnet:
+    auth:
+      auth_url: "{{ os_auth_url }}"
+      username: "{{ os_username }}"
+      password: "{{ os_password }}"
+      project_name: "{{ os_project_name }}"
+    state: present
+    network_name: "{{ network_list_item.name }}"
+    name: "{{ network_list_item.name }}"
+    cidr: "{{ network_list_item.cidr }}"
+    dns_nameservers: "{{ network_list_item.dns_server_list | default([]) }}"
+    validate_certs: False
+  register: tenant_subnet
+  with_items: "{{ tenant_info.networks | default([]) }}"
+  when: network_list_item.region == os_region
+  loop_control:
+    loop_var: network_list_item

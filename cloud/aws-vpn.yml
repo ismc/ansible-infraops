@@ -1,0 +1,95 @@
+---
+- name: Get AWS VPC information
+  ec2_vpc_net_facts:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    filters:
+      "tag:tenant": "{{ region_info.project | default(tenant_name) }}"
+    region: "{{ region_name }}"
+  register: vpc_result
+  tags:
+    - cloud
+    - aws
+    
+- name: Create AWS VGW
+  ec2_vpc_vgw:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    state: "{{ vpn_info.state | default('present') }}"
+    vpc_id: "{{ vpc_result.vpcs[0].id }}"
+    region: "{{ region_name }}"  
+    name: "{{ vpn_info.name }}"
+    type: "{{ vpn_info.state | default('ipsec.1') }}"
+  register: vgw_result
+  tags:
+    - cloud
+    - aws
+
+- debug: var=vgw_result
+  tags:
+    - cloud
+    - aws
+            
+- name: Create AWS CGW 
+  ec2_customer_gateway:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    bgp_asn: "{{ vpn_info.asn }}"
+    ip_address: "{{ vpn_info.ip }}"
+    name: "{{ vpn_info.name }}"
+    region: "{{ region_name }}"
+    state: "{{ vpn_info.state | default('present') }}"
+  register: cgw_result
+  tags:
+    - cloud
+    - aws
+
+- debug: var=cgw_result
+  tags:
+    - cloud
+    - aws
+
+- set_fact:
+    cgw_id: "{{ cgw_result.gateway.customer_gateway.customer_gateway_id if cgw_result.changed == 'true' else cgw_result.gateway.customer_gateway[0].customer_gateway_id }}"
+    
+- name: Create the VPN Connection
+  cloudformation:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    stack_name: "{{ vpn_info.name }}"
+    state: "{{ vpn_info.state | default('present') }}"
+    region: "{{ region_name }}"
+    disable_rollback: true
+    template: "../cloud/cloudformation/AWS_EC2_VPNConnection.yaml"
+    template_format: yaml
+    template_parameters:
+      myCustomerGateway: "{{ cgw_id }}"
+      myVPNGateway: "{{ vgw_result.vgw.id }}"
+    tags:
+      Stack: "{{ vpn_info.name }}"
+  register: vpn_result
+  tags:
+    - cloud
+    - aws
+
+- debug: var=vpn_result
+  tags:
+    - cloud
+    - aws
+
+- name: Get the VPN Connection information
+  shell: "AWS_ACCESS_KEY_ID={{ aws_access_key }} AWS_SECRET_ACCESS_KEY={{ aws_secret_key }} AWS_DEFAULT_REGION={{ region_name }} AWS_DEFAULT_OUTPUT='json' /usr/bin/aws ec2 describe-vpn-connections --filters 'Name=vpn-connection-id,Values={{ vpn_result.stack_resources[0].physical_resource_id }}'" 
+#  shell: "AWS_ACCESS_KEY_ID={{ aws_access_key }} AWS_SECRET_ACCESS_KEY={{ aws_secret_key }} AWS_DEFAULT_REGION={{ region_name }} /usr/bin/aws ec2 describe-vpn-connections" 
+  args:
+    executable: /bin/bash
+  register: aws_output
+
+- set_fact:
+    ec2_output: "{{ aws_output.stdout|from_json }}"
+
+- debug: var=ec2_output
+
+- set_fact:
+    vpn_config: "{{ ec2_output.VpnConnections[0].CustomerGatewayConfiguration }}"
+        
+- debug: var=vpn_config

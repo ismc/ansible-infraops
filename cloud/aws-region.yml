@@ -1,0 +1,58 @@
+---
+- name: Create AWS region VPC
+  ec2_vpc_net:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    name: "{{ region_info.project }}"
+    cidr_block: "{{ region_info.cidr }}"
+    region: "{{ region_name }}"
+    tags:
+      tenant: "{{ region_info.project | default(tenant_name) }}"
+    tenancy: dedicated
+  register: vpc_result
+  tags:
+    - cloud
+    - aws
+    
+- name: Create AWS region subnets
+  ec2_vpc_subnet:
+    aws_access_key: "{{ aws_access_key }}"
+    aws_secret_key: "{{ aws_secret_key }}"
+    state: "{{ tenant_network_item.state | default('present') }}"
+    vpc_id: '{{ vpc_result.vpc.id }}'
+    cidr: "{{ tenant_network_item.cidr }}"
+    region: "{{ region_name }}"
+    az: "{{ tenant_network_item.az }}"
+    resource_tags:
+      name: "{{ tenant_network_item.state | default('tenant_network_item.cidr') }}"
+      tenant: "{{ region_info.project }}"
+  with_items: "{{ region_info.networks | default([]) }}"
+  loop_control:
+    loop_var: tenant_network_item
+  tags:
+    - cloud
+    - aws  
+
+- include: ../cloud/{{ region_info.provider }}-vpn.yml project_name="{{ region_info.project }}" vpn_info="{{ vpn_item }}"
+  with_items: "{{ region_info.vpns | default([]) }}"
+  loop_control:
+    loop_var: vpn_item
+  tags:
+    - cloud
+    - aws  
+
+#- name: Set up outside subnet route table
+#  ec2_vpc_route_table:
+#    vpc_id: '{{ vpc.vpc_id }}'
+#    region: '{{ cloud_info["aws"].region }}'
+#    tags:
+#      Name: CSR (Public)
+#      Owner: stevenca
+#      Environment: '{{ cloud_tag }}'
+#    subnets:
+#      - '{{ outside_subnet.subnet.id }}'
+#    routes:
+#      - dest: 0.0.0.0/0
+#        gateway_id: "{{ vpc.igw_id }}"
+#  register: public_route_table
+#  when: outside_subnet.changed

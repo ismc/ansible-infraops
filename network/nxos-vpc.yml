@@ -1,0 +1,66 @@
+---
+- name: run show version on remote devices
+  nxos_command:
+    commands: show version | json
+    provider: "{{ cli }}"
+  register: result
+
+- set_fact:
+    version: "{{ result.stdout[0] }}"
+
+- debug: msg="Switch {{ inventory_hostname }} is a {{ version.chassis_id }} running {{ version.kickstart_ver_str }}"
+
+#  - name: Ensure vpc is enabled
+#    nxos_feature:
+#      feature: vpc
+#      state: enabled
+#      provider: "{{ cli }}"
+
+- name: Configure the VPC
+  nxos_vpc:
+    domain: "{{ vpc_members[inventory_hostname].domain }}"
+    role_priority: "{{ vpc_members[inventory_hostname].role_priority | default(omit) }}"
+    system_priority: "{{ vpc_members[inventory_hostname].system_priority | default(omit) }}"
+    pkl_dest: "{{ vpc_members[inventory_hostname].pkl_dest }}"
+    pkl_src: "{{ vpc_members[inventory_hostname].pkl_src | default(ansible_host) }}"
+    pkl_vrf: "{{ vpc_members[inventory_hostname].pkl_vrf | default(omit) }}"
+    peer_gw: "{{ vpc_members[inventory_hostname].peer_gw | default(false) }}"
+    auto_recovery: "{{ vpc_members[inventory_hostname].auto_recovery | default(false) }}"
+    state: present
+    provider: "{{ cli }}"
+
+- name: Configure interfaces for VPC Peer Link
+  nxos_interface:
+    interface: "{{ item }}"
+    state: present
+    description: "VPC Peer Link"
+    mode: layer2
+    admin_state: up
+    provider: "{{ cli }}"
+  with_items:
+    - "{{ vpc_members[inventory_hostname].peer_link_ports }}"
+        
+- name: Create port-channels for the VPC Peer Link
+  nxos_portchannel:
+    group: "{{ vpc_members[inventory_hostname].peer_link_group }}"
+    members: "{{ vpc_members[inventory_hostname].peer_link_ports }}"
+    mode: active
+    state: present
+    force: true
+    provider: "{{ cli }}"
+  register: command_result
+
+- name: Configure the VPC Peer Link
+  nxos_vpc_interface:
+    portchannel: "{{ vpc_members[inventory_hostname].peer_link_group }}"
+    peer_link: true
+    provider: "{{ cli }}"
+    
+       
+
+      
+      
+
+      
+
+

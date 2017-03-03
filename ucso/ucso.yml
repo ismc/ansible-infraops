@@ -1,0 +1,43 @@
+---
+- hosts: ucso-tor
+  gather_facts: no
+  connection: local
+  vars_files:
+    - ucso-vault.yml
+    - ucso-vars.yml 
+  vars:
+    ntp_servers:
+      - 10.11.160.238
+      - 10.5.27.10
+    cli:
+      host: "{{ inventory_hostname }}"
+      username: "{{ admin_username }}"
+      password: "{{ admin_password }}"
+      transport: cli
+      
+  tasks:
+    - name: Set the switch name and domain name
+      nxos_config:
+        lines:
+          - "hostname {{ inventory_hostname }}"
+          - ip domain-name lab.eng.rdu.redhat.com
+        provider: "{{ cli }}"
+        
+    - name: Set the NTP server
+      nxos_ntp:
+        server: "{{ item }}"
+        prefer: enabled
+        provider: "{{ cli }}"
+      with_items: "{{ ntp_servers }}"
+      
+    - include: ../network/configure-nxos-vpc.yml
+      tags:
+        - vpc
+        
+    - include: ../network/configure-nxos-vlans.yml
+      tags:
+        - vlan
+        
+    - include: ../network/configure-nxos-ports.yml
+      tags:
+        - ports

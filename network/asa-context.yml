@@ -1,0 +1,47 @@
+---
+- name: Get Version
+  asa_command:
+    commands:
+      - show version
+    context: system
+    provider: "{{ cli }}"
+
+- name: Associate VLAN with interface
+  asa_config:
+    lines:
+      - vlan 610
+    parents: ['interface Port-channel1.610']
+    context: system
+    provider: "{{ cli }}"
+
+- name: Add Context
+  asa_config:
+    lines:
+      - allocate-interface Port-channel1.102
+      - allocate-interface Port-channel1.610
+      - config-url disk0:/rhat.cfg
+    parents: ['context rhat']
+    context: system
+    provider: "{{ cli }}"
+        
+        
+- name: Configure the outside interface
+  asa_config:
+    lines:
+      - nameif outside
+      - security-level 0
+      - ip address 192.133.159.74 255.255.255.192
+    context: rhat
+    parents: ['interface Port-channel1.102']
+    provider: "{{ cli }}"
+        
+- name: Configure the inside interface
+  asa_config:
+    lines:
+      - nameif inside
+      - security-level 100
+      - ip address 192.133.159.174 255.255.255.252
+    context: rhat
+    parents: ['interface Port-channel1.610']
+    provider: "{{ cli }}"
+        

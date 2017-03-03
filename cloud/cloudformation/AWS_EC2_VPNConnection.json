@@ -1,0 +1,22 @@
+{
+   "AWSTemplateFormatVersion" : "2010-09-09",
+   "Parameters" : {
+      "myCustomerGateway" : {
+         "Type" : "String",
+      },
+      "myVPNGateway" : {
+         "Type" : "String",
+      }
+   }   
+   "Resources" : {
+      "myVPNConnection" : {
+         "Type" : "AWS::EC2::VPNConnection",
+         "Properties" : {
+            "Type" : "ipsec.1",
+            "StaticRoutesOnly" : "false",
+            "CustomerGatewayId" : {"Ref" : "myCustomerGateway"},
+            "VpnGatewayId" : {"Ref" : "myVPNGateway"}
+         }
+      }
+   }
+}

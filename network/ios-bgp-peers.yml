@@ -1,0 +1,27 @@
+---
+- name: Add the BGP Peers
+  ios_config:
+    lines:
+      - "neighbor {{ item.ip }} remote-as {{ item.as }}" 
+    parents: router bgp "{{ local_bgp_as }}"
+    provider: "{{ cli }}"
+  with_items: "{{ bgp_peer_list | default([]) }}"
+
+- name: Activate the BGP Peers
+  ios_config:
+    lines:
+      - "neighbor {{ item.ip }} activate"
+    parents: [ "router bgp {{ local_bgp_as }}", 'address-family ipv4' ]
+    provider: "{{ cli }}"
+  with_items: "{{ bgp_peer_list | default([]) }}"
+
+- name: Add BGP Peer Options
+  ios_config:
+    lines:
+      - "neighbor {{ item.0.ip }} {{ item.1 }}"
+    parents: [ "router bgp {{ local_bgp_as }}", 'address-family ipv4' ]
+    provider: "{{ cli }}"
+  with_subelements:
+    - "{{ bgp_peer_list | default([]) }}"
+    - options
+    - skip_missing: yes

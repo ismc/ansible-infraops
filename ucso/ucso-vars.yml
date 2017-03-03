@@ -1,0 +1,48 @@
+vpc_members:
+  nexus-sw03-mgmt:
+    domain: 100
+    pkl_src: 10.12.15.147
+    pkl_dest: 10.12.15.148
+    system_priority: 4000
+    role_priority: 10
+    peer_gw: yes
+    peer_link_group: 1
+    peer_link_ports: ["Eth1/1","Eth1/2"]
+  nexus-sw04-mgmt:
+    domain: 100
+    pkl_src: 10.12.15.148
+    pkl_dest: 10.12.15.147
+    peer_gw: yes
+    peer_link_group: 1
+    peer_link_ports: ["Eth1/1","Eth1/2"]
+    
+vlan_data:
+  - { id: 10, name: ucso_mgmt }
+  - { id: 100, name: ucso_api }
+  - { id: 110, name: ucso_pxe }
+  - { id: 120, name: ucso_storage }
+  - { id: 130, name: ucso_storage_mgmt }
+  - { id: 140, name: ucso_tenant }
+  - { id: 160, name: usco_floating }
+  - { id: 215, name: usco_external }
+
+port_data:
+  nexus-sw03-mgmt:
+    - { desc: "UCS_Fabric_A_Port_17", interface: "Port-channel17", vpc: 17, port_list: ["Eth1/17"],  port_profile: "ucso-fi" }
+    - { desc: "UCS_Fabric_B_Port_17", interface: "Port-channel18", vpc: 18, port_list: ["Eth1/18"],  port_profile: "ucso-fi" }
+    - { desc: "External_Uplink", interface: "Eth1/4", port_profile: "ucso-uplink" }
+  nexus-sw04-mgmt:
+    - { desc: "UCS_Fabric_A_Port_18", interface: "Port-channel17", vpc: 17, port_list: ["Eth1/17"],  port_profile: "ucso-fi" }
+    - { desc: "UCS_Fabric_B_Port_18", interface: "Port-channel18", vpc: 18, port_list: ["Eth1/18"],  port_profile: "ucso-fi" } 
+    - { desc: "External_Uplink", interface: "Eth1/4", port_profile: "ucso-uplink" }
+
+port_profiles:
+  ucso-uplink:
+    mode: access
+    access_vlan: 215
+  ucso-fi:
+    mode: trunk
+    trunk_allowed_vlans: 10,100,110,120,130,140,160,215
+    commands:
+      - spanning-tree port type edge trunk
+      - mtu 9216

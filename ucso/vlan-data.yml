@@ -1,0 +1,9 @@
+vlan_data:
+  - { id: 10, name: ucso_mgmt }
+  - { id: 100, name: ucso_api }
+  - { id: 110, name: ucso_pxe }
+  - { id: 120, name: ucso_storage }
+  - { id: 130, name: ucso_storage_mgmt }
+  - { id: 140, name: ucso_tenant }
+  - { id: 160, name: usco_floating }
+  - { id: 215, name: usco_external }
