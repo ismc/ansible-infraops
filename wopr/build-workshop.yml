@@ -1,0 +1,80 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    regions:
+      wopr:
+        provider: os
+        project: stevenca
+        cidr: 172.17.0.0/16
+        cloud: wopr
+        validate_certs: false
+        dns_servers:
+          - 8.8.8.8
+          - 8.8.4.4
+        networks:
+          - { cidr: 172.19.1.0/24, name: workshop-net1, ext_network: 940993c9-25f2-4cb0-87c8-709b5b6e07c9 }
+        instances:
+          - { name: smc-test, size: m1.medium, image: 46370095-11e1-4bff-a045-da084c12bf78, key_name: STEVENCA-M-202D, subnet: smc-net1, public_ip: true, tags: {ansible_group: login} }
+    os_flavors:
+      - {name: m1.tiny, ram: 512, vcpus: 1, disk: 1, ephemeral: 0}
+      - {name: m1.small, ram: 2048, vcpus: 1, disk: 20, ephemeral: 0}
+      - {name: m1.medium, ram: 4096, vcpus: 2, disk: 40, ephemeral: 0}
+      - {name: m1.large, ram: 8192, vcpus: 4, disk: 80, ephemeral: 0}
+      - {name: m1.xlarge, ram: 16384, vcpus: 8, disk: 160, ephemeral: 0}
+    users:
+      - { name: user1, password: user1, project: workshop}
+      - { name: user2, password: user2, project: workshop}
+    projects:
+      - { name: workshop }
+
+
+  tasks:
+    - name: Create Flavors
+      os_nova_flavor:
+        cloud: wopr
+        validate_certs: no
+        state: present
+        name: "{{ item.name }}"
+        ram: "{{ item.ram }}"
+        vcpus: "{{ item.vcpus }}"
+        disk: "{{ item.disk }}"
+        ephemeral: "{{ item.ephemeral }}"
+      with_items: "{{ os_flavors }}"
+
+#    - name: Create Projects
+#      os_project:
+#        cloud: wopr
+#        validate_certs: no
+#        state: present
+#        name: "{{ item.name }}"
+#        description: "{{ item.description | default(omit) }}"
+#        domain_id: "{{ item.domain | default(omit) }}"
+#        enabled: True
+#      with_items: "{{ projects | default([]) }}"
+
+    - name: Create Users
+      os_user:
+        cloud: wopr
+        validate_certs: no
+        state: present
+        name: "{{ item.name }}"
+        password: "{{ item.password }}"
+        email: "{{ item.password | default(omit) }}"
+        domain: "{{ item.domain | default('default') }}"
+        default_project: "{{ item.project }}"
+      with_items: "{{ users | default([]) }}"
+      tags:
+        - users
+        
+    - include: ../cloud/{{ regions[item].provider }}-region.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
+      with_items: "{{ regions.keys() | default([]) }}"
+      tags:
+        - cloud
+
+    - include: ../cloud/{{ regions[item].provider }}-instances.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
+      with_items: "{{ regions.keys() | default([]) }}"
+      tags:
+        - cloud
+

@@ -1,0 +1,32 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: no
+  vars:
+    regions:
+      wopr:
+        provider: os
+        project: stevenca
+        cidr: 172.17.0.0/16
+        cloud: wopr
+        validate_certs: false
+        dns_servers:
+          - 8.8.8.8
+          - 8.8.4.4
+        networks:
+          - { cidr: 172.19.1.0/24, name: smc-net2, ext_network: 940993c9-25f2-4cb0-87c8-709b5b6e07c9 }
+        instances:
+          - { name: smc-test, size: m1.medium, image: 46370095-11e1-4bff-a045-da084c12bf78, key_name: STEVENCA-M-202D, subnet: smc-net1, public_ip: true, tags: {ansible_group: login} }
+
+
+  tasks:
+    - include: ../cloud/{{ regions[item].provider }}-region.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
+      with_items: "{{ regions.keys() | default([]) }}"
+      tags:
+        - cloud
+
+    - include: ../cloud/{{ regions[item].provider }}-instances.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
+      with_items: "{{ regions.keys() | default([]) }}"
+      tags:
+        - cloud
+
