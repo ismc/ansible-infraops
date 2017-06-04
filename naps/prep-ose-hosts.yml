@@ -1,0 +1,62 @@
+---
+- hosts: nodes
+  become: true
+#  vars_files:
+#    - naps-vault.yml
+  vars:
+    rhn_username: smcrht
+    rhn_password: Cisc0123
+    rhsub_repos:
+      - name: rhel-7-server-rpms
+      - name: rhel-7-server-extras-rpms
+        state: present
+      - name: rhel-7-server-rh-common-rpms
+      - name: rhel-7-server-ose-3.0-rpms
+      - name: rhel-ha-for-rhel-7-server-rpms
+    packages:
+      - name: wget
+      - name: git
+      - name: net-tools
+      - name: bind-utils
+      - name: iptables-services
+      - name: bridge-utils
+      - name: bash-completion
+      - name: atomic-openshift-utils
+      - name: docker
+
+  roles:
+     - samdoran.redhat-subscription
+
+  tasks:
+    - name: Upgrade all packages
+      yum:
+        name: '*'
+        state: latest
+
+    - name: Install required packages
+      yum:
+        name: "{{ item.name }}"
+        state: "{{ item.state | default (omit) }}"
+      with_items: "{{ packages }}"
+
+    - name: Add --selinux-enabled to /etc/sysconfig/docker
+      lineinfile:
+        dest: /etc/sysconfig/docker
+        backup: yes
+        state: present
+        backrefs: yes
+        regexp: "^OPTIONS='((?!.*--selinux-enabled).*)'$"
+        line: OPTIONS='\1 --selinux-enabled'
+      tags:
+        - lineinfile
+
+    - name: Add --insecure-registry to /etc/sysconfig/docker
+      lineinfile:
+        dest: /etc/sysconfig/docker
+        backup: yes
+        state: present
+        backrefs: yes
+        regexp: "^OPTIONS='((?!.*--insecure-registry).*)'$"
+        line: OPTIONS='\1 --insecure-registry 172.30.0.0/16'
+      tags:
+        - lineinfile

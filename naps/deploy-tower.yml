@@ -1,0 +1,63 @@
+---
+- hosts: tower
+  become: true
+#  vars_files:
+#    - naps-vault.yml
+  vars:
+    rhn_username: smcrht
+    rhn_password: Cisc0123
+    rhsub_repos:
+      - name: rhel-7-server-rpms
+
+    packages:
+      - name: python2-ansible-tower-cli
+
+    ansibletower:
+      version: 3.1.1-1
+      admin_pass: RHT0123
+      db_pass: RHT0123
+      rabbitmq_pass: RHT0123
+
+  roles:
+     - samdoran.redhat-subscription
+
+  tasks:
+    - name: Upgrade all packages
+      yum:
+        name: '*'
+        state: latest
+
+    - name: Install required packages
+      yum:
+        name: "{{ item.name }}"
+        state: "{{ item.state | default (omit) }}"
+      with_items: "{{ packages }}"
+
+    - name: Download Ansible Tower
+      unarchive:
+        src: "https://releases.ansible.com/ansible-tower/setup-bundle/ansible-tower-setup-bundle-{{ ansibletower.version }}.el7.tar.gz"
+        dest: /tmp
+        copy: no
+        creates: "/tmp/ansible-tower-setup-{{ ansibletower.version }}/setup.sh"
+      tags:
+        - tower
+
+    - name: Create Tower inventory file
+      template:
+        src: tower-inventory.j2
+        dest: "/tmp/ansible-tower-setup-bundle-{{ ansibletower.version }}.el7/inventory"
+      tags:
+        - tower
+
+    - name: Execute upgrade/installation
+      become: yes
+      shell: "./setup.sh"
+      args:
+        chdir: "/tmp/ansible-tower-setup-bundle-{{ ansibletower.version }}.el7"
+      tags:
+        - tower
+#    - name: Install required packages
+#      yum:
+#        name: "{{ item.name }}"
+#        state: "{{ item.state | default (omit) }}"
+#      with_items: "{{ packages }}"

@@ -1,0 +1,224 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: no
+#  vars_files:
+#    - naps-vars.yml
+  vars:
+    regions:
+      mag-va:
+        provider: azure
+        resource: "https://management.usgovcloudapi.net"
+        storage_endpoint_suffix: "core.usgovcloudapi.net"
+        profile: scarter-mag
+        project: naps
+        location: usgovvirginia
+        cidr: 172.17.0.0/16
+        dns_servers:
+          - 8.8.8.8
+          - 8.8.4.4
+        networks:
+          - { cidr: 172.17.1.0/24, name: naps-mag-va1 }
+        instances:
+          - name: cfme
+            size: Standard_D2_v2
+            user: scarter
+            subnet: naps-mag-va1
+            public_ip: true
+            dns_name: cfme
+            tags: {ansible_group: login}
+            image: "https://naps.blob.core.usgovcloudapi.net/templates/cfme-azure-5.7.1.3-1.x86_64_fixed.vhd"
+      mac-va:
+        provider: azure
+        project: naps2000
+        profile: ansible-mac
+        location: "eastus"
+        cidr: 172.17.0.0/16
+        dns_servers:
+          - 8.8.8.8
+          - 8.8.4.4
+        networks:
+          - { cidr: 172.17.1.0/24, name: naps-mac-va1 }
+        instances:
+#          - { name: mag-va-login, size: Standard_D1_v2, offer: RHEL, publisher: RedHat, sku: '7.3', version: latest, user: scarter, subnet: naps-mag-va1, public_ip: true, dns_name: bastian, tags: {ansible_group: login} }
+          - name: cfme
+            size: Standard_D2_v2
+            user: scarter
+            subnet: naps-mac-va1
+            public_ip: true
+            dns_name: cfme
+            tags: {ansible_group: login}
+            image: "https://naps2000.blob.core.windows.net/templates/cfme-azure-5.7.1.3-1.x86_64_fixed.vhd"
+    ssh_keys:
+      scarter: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDK19uD+miGdkNhTdY5MA8Yw1MT//jiOWHFUECMoyl2MygTFC/MvNDXitUR4tevwjwpcMFdQnG0l6yVAg0u44L3HftErViJILRjPg24JiBefXfCEBZTqmINYnBvgkh8uvcwzauGiQ4EeTBmzN19+S+2yhJSXfGBYt5XQJ+h7sxN7MEeVRT3CoXxWyCYKjTt7CWdUHjVU/xDeGbFxJjmAO9PTWy1+iJqSQ0OID75kfddoJUOEZFX9MoFmWGwGSj4ljb64AG5WKZvBKyrRFN3MWIZgmNY+POyuKPeNctwXdlbyDk0CGTuK3gjsH2dxDES/tXiFIpXagOeNjWN4bb49Ft5 stevenca@STEVENCA-M-202D"
+
+
+  tasks:
+    - name: Set name of the region for testing
+      set_fact: azure_region="mac-va"
+
+
+    - include: ../cloud/{{ regions[azure_region].provider }}-region.yml region_name="{{ azure_region }}" region_info="{{ regions[azure_region] }}"
+      tags:
+        - cloud
+
+    # The name of the storage group must be between 3 and 24 characters in length and use numbers and lower-case letters only
+    - name: Set name of the storage group
+      set_fact: azure_storage_group="{{ regions[azure_region].project | regex_replace('[^A-z,0-9]', '') }}"
+
+#    - name: Create a resource group
+#      azure_rm_resourcegroup:
+#        location: "{{ regions[azure_region].location }}"
+#        resource: "{{ regions[azure_region].resource | default(omit) }}"
+#        profile: "{{ regions[azure_region].profile | default(omit) }}"
+#        name: "{{ regions[azure_region].project }}"
+#        state: present
+#
+#    - name: Create storage account
+#      azure_rm_storageaccount:
+#        state: present
+#        resource_group: "{{ regions[azure_region].project }}"
+#        location: "{{ regions[azure_region].location }}"
+#        resource: "{{ regions[azure_region].resource | default(omit) }}"
+#        storage_endpoint_suffix: "{{ regions[azure_region].storage_endpoint_suffix | default(omit) }}"
+#        profile: "{{ regions[azure_region].profile | default(omit) }}"
+#        name: "{{ azure_storage_group }}"
+#        type: Standard_LRS
+#        tags:
+#          delete: on-exit
+
+    - name: Create container templates and upload CFME VHD
+      azure_rm_storageblob:
+        profile: default
+        resource_group: "{{ regions[azure_region].project }}"
+        resource: "{{ regions[azure_region].resource | default(omit) }}"
+        storage_endpoint_suffix: "{{ regions[azure_region].storage_endpoint_suffix | default(omit) }}"
+        storage_account_name: "{{ azure_storage_group }}"
+        profile: "{{ regions[azure_region].profile | default(omit) }}"
+        container: templates
+        blob: cfme-azure-5.7.1.3-1.x86_64_fixed.vhd
+        src: /Volumes/Backup/tmp/cfme-azure-5.7.1.3-1.x86_64_fixed.vhd
+
+#    - name: Create security group
+#      azure_rm_securitygroup:
+#        state: present
+#        resource_group: "{{ regions[azure_region].project }}"
+#        location: "{{ regions[azure_region].location }}"
+#        resource: "{{ regions[azure_region].resource | default(omit) }}"
+#        name: "{{ regions[azure_region].project }}_securitygroup"
+#        purge_rules: yes
+#        rules:
+#          - name: 'AllowSSH'
+#            protocol: Tcp
+#            source_address_prefix: "Internet"
+#            destination_port_range: 22
+#            access: Allow
+#            priority: 100
+#            direction: Inbound
+#
+#    - name: Create a virtual network
+#      azure_rm_virtualnetwork:
+#        name: "{{ regions[azure_region].project }}_vnet"
+#        resource_group: "{{ regions[azure_region].project }}"
+#        location: "{{ regions[azure_region].location }}"
+#        resource: "{{ regions[azure_region].resource | default(omit) }}"
+#        address_prefixes_cidr:
+#          - "{{ regions[azure_region].cidr }}"
+#        dns_servers: "{{ regions[azure_region].dns_servers }}"
+#
+#    - name: Create a subnet
+#      azure_rm_subnet:
+#        name: "{{ tenant_network_item.name }}"
+#        virtual_network_name: "{{ regions[azure_region].project }}_vnet"
+#        resource_group: "{{ regions[azure_region].project }}"
+#        resource: "{{ regions[azure_region].resource | default(omit) }}"
+#        address_prefix_cidr: "{{ tenant_network_item.cidr }}"
+#      with_items: "{{ regions[azure_region].networks | default(tenant_name) }}"
+#      loop_control:
+#        loop_var: tenant_network_item
+
+#    - name: Create a Public IP Address
+#      azure_rm_publicipaddress:
+#        name: "{{ tenant_instance_item.name }}_public_ip_address"
+#        domain_name_label: "{{ tenant_instance_item.dns_name | default(omit) }}"
+#        resource_group: "{{ regions[azure_region].project }}"
+#        resource: "{{ regions[azure_region].resource | default(omit) }}"
+#        profile: "{{ regions[azure_region].profile | default(omit) }}"
+#      with_items: "{{ regions[azure_region].instances | default([]) }}"
+#      when: tenant_instance_item.public_ip == "true"
+#      register: result
+#      loop_control:
+#        loop_var: tenant_instance_item
+
+#    - name: Create a network interface
+#      azure_rm_networkinterface:
+#        name: "{{ tenant_instance_item.name }}_{{ tenant_instance_item.subnet }}"
+#        resource_group: "{{ regions[azure_region].project }}"
+#        location: "{{ regions[azure_region].location }}"
+#        resource: "{{ regions[azure_region].resource | default(omit) }}"
+#        virtual_network_name: "{{ regions[azure_region].project }}_vnet"
+#        subnet_name: "{{ tenant_instance_item.subnet }}"
+#        public_ip: "{{ tenant_instance_item.public_ip | default('false') }}"
+#        public_ip_address_name: "{{ tenant_instance_item.name }}_public_ip_address"
+#        profile: "{{ regions[azure_region].profile | default(omit) }}"
+#      with_items: "{{ regions[azure_region].instances | default([]) }}"
+#      loop_control:
+#        loop_var: tenant_instance_item
+
+
+    - name: Create the Host VM
+      azure_rm_deployment:
+        deployment_mode: incremental
+        wait_for_deployment_completion: yes
+        state: present
+        location: "{{ regions[azure_region].location }}"
+        resource_group_name: "{{ regions[azure_region].project }}"
+        resource: "{{ regions[azure_region].resource | default(omit) }}"
+        profile: "{{ regions[azure_region].profile | default(omit) }}"
+        template:
+          $schema: "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#"
+          contentVersion: "1.0.0.0"
+          resources:
+            -
+              comments: "Create Host"
+              type: "Microsoft.Compute/virtualMachines"
+              name: "{{ tenant_instance_item.name }}"
+              apiVersion: "2015-06-15"
+              location: "{{ regions[azure_region].location }}"
+              properties:
+                hardwareProfile:
+                  vmSize: "{{ tenant_instance_item.size }}"
+                storageProfile:
+                  osDisk:
+                    name: "{{ tenant_instance_item.name }}-osDisk"
+                    osType: "linux"
+                    caching: "ReadWrite"
+                    createOption: "fromImage"
+                    vhd:
+                      uri: "https://{{ azure_storage_group }}.blob.core.windows.net/vhds/{{ tenant_instance_item.name }}-osDisk.vhd"
+                    image:
+                      uri: "{{ tenant_instance_item.image }}"
+                  dataDisks: []
+                osProfile:
+                  computerName: "{{ tenant_instance_item.name }}"
+                  adminUsername: "{{ tenant_instance_item.user }}"
+                  linuxConfiguration:
+                    disablePasswordAuthentication: true
+                    ssh:
+                      publicKeys:
+                        -
+                          path: "/home/{{ tenant_instance_item.user }}/.ssh/authorized_keys"
+                          keyData: "{{ ssh_keys[tenant_instance_item.user] }}"
+                  secrets: []
+                networkProfile:
+                  networkInterfaces:
+                    -
+                      properties:
+                        primary: true
+                      id: "[resourceId('Microsoft.Network/networkInterfaces', '{{ tenant_instance_item.name }}_{{ tenant_instance_item.subnet }}')]"
+      with_items: "{{ regions[azure_region].instances | default([]) }}"
+      loop_control:
+        loop_var: tenant_instance_item
+      register: vm_result
+      tags:
+        - instance

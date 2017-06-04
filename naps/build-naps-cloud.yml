@@ -1,0 +1,18 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: no
+  vars_files:
+    - naps-vars.yml
+
+  tasks:
+    - include: ../cloud/{{ regions[item].provider }}-region.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
+      with_items: "{{ regions.keys() | default([]) }}"
+      tags:
+        - cloud
+
+    - include: ../cloud/{{ regions[item].provider }}-instances.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
+      with_items: "{{ regions.keys() | default([]) }}"
+      tags:
+        - cloud
+
