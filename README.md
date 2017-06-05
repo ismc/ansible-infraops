@@ -1,2 +1,2 @@
 # ansible-infraops
-Ansible Playbooks for Infrastructure Operations
+Ansible playbooks for infrastructure operations

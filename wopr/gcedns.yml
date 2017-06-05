@@ -1,0 +1,25 @@
+---
+- hosts: localhost
+  connection: local
+  gather_facts: no
+
+  tasks:
+
+  - name: Create a basic zone with the minimum number of parameters.
+    gcdns_zone:
+      service_account_email: 395400358949-compute@developer.gserviceaccount.com
+      project_id: high-essence-164710
+      credentials_file: /Users/scarter/.gce/high-essence-164710.json
+      state: absent
+      zone: home.ismc.io
+
+  - name: Create the record
+    gcdns_record:
+      service_account_email: 395400358949-compute@developer.gserviceaccount.com
+      project_id: high-essence-164710
+      credentials_file: /Users/scarter/.gce/high-essence-164710.json
+      record: 'smc-mx.home.ismc.io'
+      zone: 'ismc.io'
+      state: present
+      type: A
+      value: '99.58.160.10'

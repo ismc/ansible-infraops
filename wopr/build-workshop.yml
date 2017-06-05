@@ -2,11 +2,13 @@
 - hosts: localhost
   connection: local
   gather_facts: no
+  vars_files:
+    - wopr-vault.yml
   vars:
     regions:
       wopr:
         provider: os
-        project: stevenca
+        project: workshop
         cidr: 172.17.0.0/16
         cloud: wopr
         validate_certs: false
@@ -14,7 +16,8 @@
           - 8.8.8.8
           - 8.8.4.4
         networks:
-          - { cidr: 172.19.1.0/24, name: workshop-net1, ext_network: 940993c9-25f2-4cb0-87c8-709b5b6e07c9 }
+          - { cidr: 172.19.1.0/24, name: workshop-net1, ext_network: 75b4c48e-7b1d-4910-8bb5-f57824c95fae }
+          - { cidr: 172.19.2.0/24, name: workshop-net2, ext_network: 75b4c48e-7b1d-4910-8bb5-f57824c95fae }
         instances:
           - { name: smc-test, size: m1.medium, image: 46370095-11e1-4bff-a045-da084c12bf78, key_name: STEVENCA-M-202D, subnet: smc-net1, public_ip: true, tags: {ansible_group: login} }
     os_flavors:
@@ -24,10 +27,10 @@
       - {name: m1.large, ram: 8192, vcpus: 4, disk: 80, ephemeral: 0}
       - {name: m1.xlarge, ram: 16384, vcpus: 8, disk: 160, ephemeral: 0}
     users:
-      - { name: user1, password: user1, project: workshop}
-      - { name: user2, password: user2, project: workshop}
+      - { name: student1, project: workshop}
+      - { name: student2, password: N0P@sswd$, project: workshop}
     projects:
-      - { name: workshop }
+      - { name: workshop, users: [student1, student2] }
 
 
   tasks:
@@ -43,38 +46,33 @@
         ephemeral: "{{ item.ephemeral }}"
       with_items: "{{ os_flavors }}"
 
-#    - name: Create Projects
-#      os_project:
-#        cloud: wopr
-#        validate_certs: no
-#        state: present
-#        name: "{{ item.name }}"
-#        description: "{{ item.description | default(omit) }}"
-#        domain_id: "{{ item.domain | default(omit) }}"
-#        enabled: True
-#      with_items: "{{ projects | default([]) }}"
-
-    - name: Create Users
-      os_user:
-        cloud: wopr
+    - name: Create Projects
+      os_project:
+        auth:
+          auth_url: "{{ os_auth_url }}"
+          username: "{{ os_username }}"
+          password: "{{ os_password }}"
+          project_name: "{{ os_project_name }}"
         validate_certs: no
         state: present
         name: "{{ item.name }}"
-        password: "{{ item.password }}"
-        email: "{{ item.password | default(omit) }}"
-        domain: "{{ item.domain | default('default') }}"
-        default_project: "{{ item.project }}"
-      with_items: "{{ users | default([]) }}"
+        description: "{{ item.description | default(omit) }}"
+        domain_id: "{{ item.domain | default(omit) }}"
+        enabled: True
+      with_items: "{{ projects | default([]) }}"
+
+    - include: ../cloud/os-user-roles.yml project_name="{{ item.name }}" user_list="{{ item.users }}"
+      with_items: "{{ projects | default([]) }}"
       tags:
-        - users
-        
+        - cloud
+
     - include: ../cloud/{{ regions[item].provider }}-region.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
       with_items: "{{ regions.keys() | default([]) }}"
       tags:
         - cloud
 
-    - include: ../cloud/{{ regions[item].provider }}-instances.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
-      with_items: "{{ regions.keys() | default([]) }}"
-      tags:
-        - cloud
+#    - include: ../cloud/{{ regions[item].provider }}-instances.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
+#      with_items: "{{ regions.keys() | default([]) }}"
+#      tags:
+#        - cloud
 

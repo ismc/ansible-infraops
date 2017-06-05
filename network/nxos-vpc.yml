@@ -46,7 +46,7 @@
     members: "{{ vpc_members[inventory_hostname].peer_link_ports }}"
     mode: active
     state: present
-    force: true
+#    force: true
     provider: "{{ cli }}"
   register: command_result
 

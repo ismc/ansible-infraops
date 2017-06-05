@@ -21,7 +21,7 @@
     members: "{{ item.port_list }}"
     mode: "{{ item.mode | default('active') }}"
     state: present
-    force: true
+#    force: true
   with_items: "{{ port_data[inventory_hostname] | default([]) }}"
   when: item.port_list is defined
      

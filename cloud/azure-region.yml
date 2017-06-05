@@ -1,0 +1,63 @@
+- name: Create a resource group
+  azure_rm_resourcegroup:
+    location: "{{ region_info.location }}"
+    resource: "{{ region_info.resource | default(omit) }}"
+    profile: "{{ region_info.profile | default(omit) }}"
+    name: "{{ region_info.project }}"
+    state: present
+
+# The name of the storage group must be between 3 and 24 characters in length and use numbers and lower-case letters only
+- name: Set name of the storage group
+  set_fact: azure_storage_group="{{ region_info.project | regex_replace('[^A-z,0-9]', '') }}{{ region_name | regex_replace('[^A-z,0-9]', '') }}"
+
+- name: Create storage account
+  azure_rm_storageaccount:
+    state: present
+    resource_group: "{{ region_info.project }}"
+    location: "{{ region_info.location }}"
+    resource: "{{ region_info.resource | default(omit) }}"
+#    storage_endpoint_suffix: "{{ region_info.storage_endpoint_suffix | default(omit) }}"
+    profile: "{{ region_info.profile | default(omit) }}"
+    name: "{{ azure_storage_group }}"
+    type: Standard_LRS
+
+- azure_rm_securitygroup:
+    state: present
+    resource_group: "{{ region_info.project }}"
+    profile: "{{ region_info.profile | default(omit) }}"
+    location: "{{ region_info.location }}"
+    resource: "{{ region_info.resource | default(omit) }}"
+    name: "{{ region_info.project }}_securitygroup"
+    purge_rules: yes
+    rules:
+      - name: 'AllowSSH'
+        protocol: Tcp
+        source_address_prefix: "Internet"
+        destination_port_range: 22
+        access: Allow
+        priority: 100
+        direction: Inbound
+
+- name: Create a virtual network
+  azure_rm_virtualnetwork:
+    name: "{{ region_info.project }}_vnet"
+    resource_group: "{{ region_info.project }}"
+    profile: "{{ region_info.profile | default(omit) }}"
+    location: "{{ region_info.location }}"
+    resource: "{{ region_info.resource | default(omit) }}"
+    address_prefixes_cidr:
+      - "{{ region_info.cidr }}"
+    dns_servers: "{{ region_info.dns_servers }}"
+
+- name: Create a subnet
+  azure_rm_subnet:
+    name: "{{ tenant_network_item.name }}"
+    virtual_network_name: "{{ region_info.project }}_vnet"
+    resource_group: "{{ region_info.project }}"
+    profile: "{{ region_info.profile | default(omit) }}"
+    resource: "{{ region_info.resource | default(omit) }}"
+    address_prefix_cidr: "{{ tenant_network_item.cidr }}"
+  with_items: "{{ region_info.networks | default(tenant_name) }}"
+  loop_control:
+    loop_var: tenant_network_item
+    

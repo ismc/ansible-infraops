@@ -1,42 +1,51 @@
 ---
-- name: Create the tenant networks
+- name: Create the OpenStack tenant networks
   os_network:
-    auth:
-      auth_url: "{{ os_auth_url }}"
-      username: "{{ os_username }}"
-      password: "{{ os_password }}"
-      project_name: "{{ os_project_name }}"
     state: present
+    cloud: "{{ region_dict.cloud | default(omit) }}"
     shared: false
     provider_network_type: vlan
-    name: "{{ network_list_item.name | default(cidr) }}"
+    name: "{{ network_dict.name }}"
     external: false
-    project: "{{ tenant_info.name }}"
-    validate_certs: False
-  register: tenant_network
-  with_items: "{{ tenant_info.networks | default([]) }}"
-  when: network_list_item.region == os_region
-  loop_control:
-    loop_var: network_list_item
+    project: "{{ region_dict.project | default(omit) }}"
+    validate_certs: "{{ region_dict.validate_certs | default(omit) }}"
+  register: network
+  tags:
+    - cloud
+    - os
+#
+#- set_fact:
+#    vlan_id: "{{ network.results[0].network['provider:segmentation_id'] }}"
     
-- set_fact:
-    vlan_id: "{{ tenant_network.results[0].network['provider:segmentation_id'] }}"
-    
-- name: Create the tenant subnets
+- name: Create the OpenStack tenant subnets
   os_subnet:
-    auth:
-      auth_url: "{{ os_auth_url }}"
-      username: "{{ os_username }}"
-      password: "{{ os_password }}"
-      project_name: "{{ os_project_name }}"
     state: present
-    network_name: "{{ network_list_item.name }}"
-    name: "{{ network_list_item.name }}"
-    cidr: "{{ network_list_item.cidr }}"
-    dns_nameservers: "{{ network_list_item.dns_server_list | default([]) }}"
-    validate_certs: False
-  register: tenant_subnet
-  with_items: "{{ tenant_info.networks | default([]) }}"
-  when: network_list_item.region == os_region
-  loop_control:
-    loop_var: network_list_item
+    cloud: "{{ region_dict.cloud | default(omit) }}"
+    project: "{{ region_dict.project | default(omit) }}"
+    network_name: "{{ network_dict.name }}"
+    name: "{{ network_dict.name }}_subnet"
+    cidr: "{{ network_dict.cidr }}"
+    dns_nameservers: "{{ network_dict.dns_server_list | default([]) }}"
+    validate_certs: "{{ region_dict.validate_certs | default(omit) }}"
+  register: subnet
+  tags:
+    - cloud
+    - os
+
+# - debug: var=subnet
+
+- name: Create the OpenStack tenant router
+  os_router:
+    state: present
+    cloud: "{{ region_dict.cloud | default(omit) }}"
+    project: "{{ region_dict.project | default(omit) }}"
+    name: "{{ network_dict.name }}_router"
+    network: "{{ network_dict.ext_network }}"
+    validate_certs: "{{ region_dict.validate_certs | default(omit) }}"
+    interfaces:
+      - "{{ network_dict.name }}_subnet"
+  when: (subnet.changed) and (network_dict.ext_network is defined)
+  register: router
+  ignore_errors: yes
+
+# - debug: var=router

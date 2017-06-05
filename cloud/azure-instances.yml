@@ -1,0 +1,54 @@
+- name: Create a Public IP Address
+  azure_rm_publicipaddress:
+    name: "{{ tenant_instance_item.name }}_public_ip_address"
+    domain_name_label: "{{ tenant_instance_item.dns_name | default(omit) }}"
+    resource_group: "{{ region_info.project }}"
+    resource: "{{ region_info.resource }}"
+    profile: "{{ region_info.profile | default(omit) }}"
+  with_items: "{{ region_info.instances | default([]) }}"
+  when: tenant_instance_item.public_ip is defined
+  register: result
+  loop_control:
+    loop_var: tenant_instance_item
+
+- name: Create a network interface
+  azure_rm_networkinterface:
+    name: "{{ tenant_instance_item.name }}_{{ tenant_instance_item.subnet }}"
+    resource_group: "{{ region_info.project }}"
+    resource: "{{ region_info.resource }}"
+    profile: "{{ region_info.profile | default(omit) }}"
+    virtual_network_name: "{{ region_info.project }}_vnet"
+    subnet_name: "{{ tenant_instance_item.subnet }}"
+    public_ip: "{{ tenant_instance_item.public_ip | default('false') }}"
+    public_ip_address_name: "{{ tenant_instance_item.name }}_public_ip_address "
+  with_items: "{{ region_info.instances | default([]) }}"
+  loop_control:
+    loop_var: tenant_instance_item
+
+- name: Create a VM with exiting storage account and NIC
+  azure_rm_virtualmachine:
+    resource_group: "{{ region_info.project }}"
+    resource: "{{ region_info.resource }}"
+    profile: "{{ region_info.profile | default(omit) }}"
+    storage_endpoint_suffix: "{{ region_info.storage_endpoint_suffix }}"
+    name: "{{ tenant_instance_item.name }}"
+    vm_size: "{{ tenant_instance_item.size }}"
+    storage_account: "{{ azure_storage_group }}"
+    admin_username: "{{ tenant_instance_item.user }}"
+    ssh_password_enabled: no
+    ssh_public_keys:
+      - path: "/home/{{ tenant_instance_item.user }}/.ssh/authorized_keys"
+        key_data: "{{ ssh_keys[tenant_instance_item.user] }}"
+    network_interfaces: "{{ tenant_instance_item.name }}_{{ tenant_instance_item.subnet }}"
+    tags: "{{ tenant_instance_item.tags | default(omit) }}"
+    image:
+      offer: "{{ tenant_instance_item.offer }}"
+      publisher: "{{ tenant_instance_item.publisher }}"
+      sku: "{{ tenant_instance_item.sku }}"
+      version: "{{ tenant_instance_item.version }}"
+  with_items: "{{ region_info.instances | default([]) }}"
+  loop_control:
+    loop_var: tenant_instance_item
+  register: vm_result
+  tags:
+    - instance

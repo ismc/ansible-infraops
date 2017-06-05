@@ -1,0 +1,33 @@
+---
+- name: Create the OpenStack instance
+  os_server:
+    state: present
+    cloud: "{{ region_info.cloud | default(omit) }}"
+    name: "{{ tenant_instance_item.name }}"
+    image: "{{ tenant_instance_item.image }}"
+    key_name: "{{ tenant_instance_item.key_name }}"
+    flavor: "{{ tenant_instance_item.size }}"
+    nics:
+      - net-name: "{{ tenant_instance_item.subnet }}"
+    validate_certs: "{{ region_info.validate_certs | default(omit) }}"
+    meta: "{{ tenant_instance_item.tags }}"
+  with_items: "{{ region_info.instances | default([]) }}"
+  loop_control:
+    loop_var: tenant_instance_item
+  tags:
+    - cloud
+    - os
+
+- name: Assign Flotaing IPs
+  os_floating_ip:
+     cloud: "{{ region_info.cloud | default(omit) }}"
+     server: "{{ tenant_instance_item.name }}"
+     validate_certs: "{{ region_info.validate_certs | default(omit) }}"
+     reuse: yes
+  with_items: "{{ region_info.instances | default([]) }}"
+  when: tenant_instance_item.public_ip is defined
+  loop_control:
+    loop_var: tenant_instance_item
+  tags:
+    - cloud
+    - os

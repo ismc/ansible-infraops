@@ -13,6 +13,7 @@
       host: "{{ inventory_hostname }}"
       username: "{{ admin_username }}"
       password: "{{ admin_password }}"
+      timeout: 30
       transport: cli
       
   tasks:
@@ -30,14 +31,14 @@
         provider: "{{ cli }}"
       with_items: "{{ ntp_servers }}"
       
-    - include: ../network/configure-nxos-vpc.yml
+    - include: ../network/nxos-vpc.yml
       tags:
         - vpc
         
-    - include: ../network/configure-nxos-vlans.yml
+    - include: ../network/nxos-vlans.yml
       tags:
         - vlan
         
-    - include: ../network/configure-nxos-ports.yml
+    - include: ../network/nxos-ports.yml
       tags:
         - ports
