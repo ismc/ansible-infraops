@@ -1,0 +1,15 @@
+---
+- name: Add users to the project
+  os_user_role:
+    auth:
+      auth_url: "{{ os_auth_url }}"
+      username: "{{ os_username }}"
+      password: "{{ os_password }}"
+      project_name: "{{ os_project_name }}"
+    user: "{{ user_list_item }}"
+    role: _member_
+    project: "{{ project_name }}"
+    validate_certs: False
+  with_items: "{{ user_list }}"
+  loop_control:
+    loop_var: user_list_item
