@@ -1,0 +1,44 @@
+---
+- name: Create AWS region subnets
+  ec2_vpc_subnet:
+    aws_access_key: "{{ aws_access_key | default(omit) }}"
+    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+    state: "{{ network_data.state | default('present') }}"
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    cidr: "{{ network_data.cidr }}"
+    region: "{{ region_name }}"
+    az: "{{ network_data.az }}"
+    resource_tags:
+      Name: "{{ network_data.name | default('tenant_network_item.cidr') }}"
+      tenant: "{{ region_data.project }}"
+  register: subnet_result
+  tags:
+    - aws
+    - subnet
+
+
+
+- name: Set up subnet route table
+  ec2_vpc_route_table:
+    aws_access_key: "{{ aws_access_key | default(omit) }}"
+    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    region: "{{ region_name }}"
+    tags:
+      Name: "{{ network_data.name | default('tenant_network_item.cidr') }}"
+    subnets:
+      - "{{ subnet_result.subnet.id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ igw_result.gateway_id }}"
+  when: network_data.nat_instance is not defined
+  register: public_route_table
+  tags:
+    - aws
+    - subnet
+
+- name: Add Instance ID to Dictionary
+  set_fact:
+    subnet_dict: "{{ subnet_dict | combine( { network_data.name: subnet_result.subnet.id } ) }}"
+
+- debug: var=subnet_dict

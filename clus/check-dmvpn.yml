@@ -1,0 +1,41 @@
+---
+- hosts: dmvpn_hubs
+  gather_facts: no
+  connection: local
+  vars_files:
+    - clus-vars.yml
+
+  tasks:
+    - name: Check DMVPN Status
+      ios_command:
+        provider:
+          host: "{{ inventory_hostname }}"
+          username: "{{ hostvars[inventory_hostname].ansible_ssh_user | default('ec2-user') }}"
+        commands: show dmvpn | inc ^ +[0-9]
+      register: command_result
+
+    - set_fact:
+        dmvpn_peers: |
+         {{command_result.stdout_lines[0] |
+            map('regex_findall','^\s*\d+\s+([0-9.]+\s+[0-9.]+\s+[A-Z]+)\s+[0-9:]+\s+[A-Z]+$') |
+            map('join') | list }}
+
+    - name: DMVPN Peers
+      debug: var=dmvpn_peers
+
+    - name: Get the EIGRP Routes
+      ios_command:
+        provider:
+          host: "{{ inventory_hostname }}"
+          username: "{{ hostvars[inventory_hostname].ansible_ssh_user | default('ec2-user') }}"
+        commands: show ip route eigrp | inc ^D
+      register: command_result
+
+    - set_fact:
+        eigrp_routes: |
+         {{command_result.stdout_lines[0] |
+            map('regex_findall','^D\s+(.*)$') |
+            map('join') | list }}
+
+    - name: EIGRP Routes
+      debug: var=eigrp_routes

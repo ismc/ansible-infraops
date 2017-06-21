@@ -1,0 +1,30 @@
+---
+- name: Create The Rules List for the Security Group {{ acl_name }}
+  set_fact:
+    rule_list: "{{ rule_list|default([]) + [ {'proto': acl_item.proto, 'ports': acl_item.dst_ports, 'cidr_ip': acl_item.src_ip } ] }}"
+  with_items: "{{ acl_list | default([]) }}"
+  loop_control:
+    loop_var: acl_item
+
+- debug: var=rule_list
+
+- name: Create Security Group {{ acl_name }} in {{ region_name }}
+  ec2_group:
+    aws_access_key: "{{ aws_access_key | default(omit) }}"
+    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+    name: "{{ acl_name }}"
+    region: "{{ region_name }}"
+    description: "{{ acl_name }}"
+    purge_rules: false
+    state: present
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    rules: "{{ rule_list }}"
+  register: security_group_result
+
+- debug: var=security_group_dict
+
+- name: Add {{ acl_name }} to Dictionary with ID {{ security_group_dict.group_id }}
+  set_fact:
+    security_group_dict: "{{ security_group_dict | combine( { acl_name: security_group_result.group_id } ) }}"
+
+

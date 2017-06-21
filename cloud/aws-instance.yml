@@ -1,0 +1,82 @@
+---
+#- name: Get the Subnet ID for {{ instance_data.subnet }} in {{ region_name }}
+#  ec2_vpc_subnet_facts:
+#    aws_access_key: "{{ aws_access_key | default(omit) }}"
+#    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+#    region: "{{ region_name }}"
+#    filters:
+#      "tag:Name": "{{ instance_data.subnet }}"
+#  register: subnet_facts
+#  tags:
+#    - aws
+#    - instances
+#
+#- name: The ID for {{ instance_data.subnet }} is {{ subnet_facts.subnets[0].id }}
+#  set_fact:
+#    subnet_id: "{{ subnet_facts.subnets[0].id }}"
+#  tags:
+#    - aws
+#    - instances
+
+#- name: Get the Security Group ID for {{ instance_data.acl }}
+#  ec2_group_facts:
+#    aws_access_key: "{{ aws_access_key | default(omit) }}"
+#    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+#    region: "{{ region_name }}"
+#    filters:
+#      group-name: "{{ instance_data.acl }}"
+#  register: security_group_facts
+##  tags:
+##    - aws
+##    - instances
+#
+#- debug: var=security_group_facts
+#
+#- name: The ID for {{ instance_data.acl }} is {{ security_group_facts.security_groups[0].group_id }}
+#  set_fact:
+#    group_id: "{{ security_group_facts.security_groups[0].group_id }}"
+#  tags:
+#    - aws
+#    - instances
+
+
+- name: Create AWS Instance {{ instance_data.name }} in {{ region_name }}
+  ec2:
+    aws_access_key: "{{ aws_access_key | default(omit) }}"
+    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+    key_name: "{{ instance_data.key_name }}"
+    region: "{{ region_name }}"
+    instance_type: "{{ instance_data.size }}"
+    instance_tags:
+      Name: instance_data.name
+      Environment: region_data.project
+      Role: instance_data.role|default(instance_data.name)
+    image: "{{ instance_data.image }}"
+    group_id: "{{ security_group_dict[instance_data.acl] }}"
+    exact_count: "{{ instance_data.count | default(1) }}"
+    count_tag:
+      - Role: "{{ instance_data.role }}"
+    wait: yes
+    vpc_subnet_id: "{{ subnet_dict[instance_data.subnet] }}"
+    assign_public_ip: "{{ instance_data.public_ip | default(omit) }}"
+    user_data: "{{ instance_data.user_data | default(omit) }}"
+  register: instance_facts
+  tags:
+    - aws
+    - instances
+
+# - debug: var=instance_facts
+
+- name: Add {{ instance_data.name }} to Dictionary with ID {{ instance_facts.tagged_instances[0].id }}
+  set_fact:
+    instance_dict: "{{ instance_dict | combine( { instance_data.name: instance_facts.tagged_instances[0].id } ) }}"
+
+- name: Add tags to Instance {{ instance_data.name }} in {{ region_name }}
+  ec2_tag:
+    region: "{{ region_name }}"
+    resource: "{{ instance_facts.tagged_instances[0].id }}"
+    state: present
+    tags: "{{ instance_data.tags }}"
+  when: instance_data.tags is defined
+
+# - debug: var=instance_dict

@@ -1,0 +1,79 @@
+---
+#- ec2_group_facts:
+#    filters:
+#      vpc-id: vpc-2fc23649
+#  register: group_facts
+#
+#- debug: var=group_facts
+#
+#- name: Create Security Group for VNF Interfaces
+#  ec2_group:
+#    aws_access_key: "{{ aws_access_key | default(omit) }}"
+#    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+#    name: vnf-interface
+#    region: "{{ region_name }}"
+#    description: vnf-interface
+#    purge_rules: true
+#    state: present
+#    vpc_id: "{{ vpc_result.vpc.id }}"
+#    rules:
+#      - proto: all
+#        to_port: None
+#        from_port: None
+#        cidr: 0.0.0.0/0
+#  register: security_group_result
+#
+#- debug: var=security_group_result
+
+#- ec2_eni_facts:
+#    filters:
+#      instance_id: "{{ instance_dict[network_data.nat_instance] }}"
+#  register: eni_facts
+#  when: network_data.nat_instance is defined
+#
+#- debug: var=eni_facts
+#  when: network_data.nat_instance is defined
+
+- name: Create interface for instance {{ network_data.nat_instance }} ID {{ instance_dict[network_data.nat_instance] }}
+  ec2_eni:
+    aws_access_key: "{{ aws_access_key | default(omit) }}"
+    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+    instance_id: "{{ instance_dict[network_data.nat_instance] }}"
+    attached: True
+    region: "{{ region_name }}"
+    device_index: 1
+    private_ip_address: "{{ network_data.inside_ip }}"
+    subnet_id: "{{ subnet_dict[network_data.name] }}"
+    state: present
+    delete_on_termination: true
+    security_groups: default
+  register: nat_interface
+  when: network_data.nat_instance is defined
+
+- name: Disable Source/Dest check on interface {{ nat_interface.interface.id }}
+  ec2_eni:
+    aws_access_key: "{{ aws_access_key | default(omit) }}"
+    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+    instance_id: "{{ instance_dict[network_data.nat_instance] }}"
+    eni_id: "{{ nat_interface.interface.id }}"
+    region: "{{ region_name }}"
+    subnet_id: "{{ subnet_dict[network_data.name] }}"
+    source_dest_check: false
+    state: present
+  when: network_data.nat_instance is defined
+
+- name: Set up default route for subnet {{ network_data.name }} to instance {{ network_data.nat_instance }}
+  ec2_vpc_route_table:
+    aws_access_key: "{{ aws_access_key | default(omit) }}"
+    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    region: "{{ region_name }}"
+    tags:
+      Name: "{{ network_data.name | default(network_data.cidr) }}"
+    subnets:
+      - "{{ subnet_dict[network_data.name] }}"
+    routes:
+      - dest: 0.0.0.0/0
+        interface_id: "{{ nat_interface.interface.id }}"
+  when: network_data.nat_instance is defined
+  register: private_route_table

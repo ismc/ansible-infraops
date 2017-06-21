@@ -1,0 +1,25 @@
+---
+- hosts: dmvpn_hubs:tag_type_network
+  gather_facts: no
+  connection: local
+  vars_files:
+    - clus-vars.yml
+
+  tasks:
+    - set_fact:
+        network_os: "{{ hostvars[inventory_hostname].ec2_tag_network_os }}"
+      when: hostvars[inventory_hostname].ec2_tag_network_os is defined
+
+    - set_fact:
+        network_os: "{{ hostvars[inventory_hostname].ansible_network_os }}"
+      when: network_os is not defined
+
+    - name: Get the version
+      ios_command:
+        provider:
+          host: "{{ inventory_hostname }}"
+          username: "{{ hostvars[inventory_hostname].ansible_ssh_user | default('ec2-user') }}"
+        commands: show version | inc Cisco IOS XE Software
+      register: command_result
+      when: network_os == 'ios'
+    - debug: var=command_result.stdout_lines[0]

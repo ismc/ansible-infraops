@@ -1,0 +1,23 @@
+---
+- name: Create The Rules List for the Security Group
+  set_fact:
+    rule_list: "{{ rule_list|default([]) + [ {'proto': acl_item.proto, 'from_port': acl_item.dst_port, 'to_port': acl_item.dst_port , 'cidr_ip': acl_item.src_ip } ] }}"
+  with_items: "{{ acl_list | default([]) }}"
+  loop_control:
+    loop_var: acl_item
+
+- debug: var=rule_list
+
+- name: Create Security Group in {{ region_name }} in {{ region_name }}
+  ec2_group:
+    aws_access_key: "{{ aws_access_key | default(omit) }}"
+    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+    name: "{{ acl_name }}"
+    region: "{{ region_name }}"
+    description: "{{ acl_name }}"
+    purge_rules: false
+    state: present
+    rules: "{{ rule_list }}"
+
+
+

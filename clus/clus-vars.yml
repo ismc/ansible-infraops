@@ -1,0 +1,47 @@
+---
+crypto_shared_key: Z893HfZFy9Y26Z4c7vweuzYvuTR4yj6G
+dmvpn_hub_addr: 64.71.176.53
+dmvpn_network_cidr: 172.24.0.0/24
+dmvpn_dict:
+  us-east-2:
+    tunnel_ip: 172.24.0.2/24
+    inside_cidr: 172.17.2.0/24
+  us-west-2:
+    tunnel_ip: 172.24.0.3/24
+    inside_cidr: 172.17.4.0/24
+regions:
+  us-east-2:
+    provider: aws
+    project: scarter-demo
+    cidr: 172.17.0.0/16
+    acl_list:
+      - login-acl
+      - csr-acl
+    networks:
+      - { name: clus-outside, cidr: 172.17.1.0/24, az: us-east-2a }
+      - { name: clus-inside, cidr: 172.17.2.0/24, az: us-east-2a, nat_instance: clus-csr, inside_ip: 172.17.2.254 }
+    instances:
+      - { name: clus-login, size: t2.micro, image: ami-0932686c, acl: login-acl, subnet: clus-inside, public_ip: false, key_name: scarter, role: login, tags: {Owner: scarter} }
+      - { name: clus-csr, size: t2.medium, image: ami-541e3931, acl: csr-acl, subnet: clus-outside, public_ip: true, key_name: scarter, role: dmvpn_spoke, tags: {Owner: scarter, network_os: ios, type: network}, user_data: 'ios-config-0001=ip route 0.0.0.0 0.0.0.0 GigabitEthernet1 dhcp' }
+#      - { name: clus-csr, size: t2.medium, image: ami-051c3b60, acl: csr-acl, subnet: clus-outside, public_ip: true, key_name: scarter, role: dmvpn_spoke, user_data: 'ios-config-0001=ip route 0.0.0.0 0.0.0.0 GigabitEthernet1 dhcp' }
+  us-west-2:
+    provider: aws
+    project: scarter-demo
+    cidr: 172.17.0.0/16
+    acl_list:
+      - login-acl
+      - csr-acl
+    networks:
+      - { name: clus-outside, cidr: 172.17.3.0/24, az: us-west-2a }
+      - { name: clus-inside, cidr: 172.17.4.0/24, az: us-west-2a, nat_instance: clus-csr, inside_ip: 172.17.4.254 }
+    instances:
+      - { name: clus-login, size: t2.micro, image: ami-b55a51cc, acl: login-acl, subnet: clus-inside, public_ip: false, key_name: scarter, role: login, tags: {Owner: scarter} }
+      - { name: clus-csr, size: t2.medium, image: ami-119b0071, acl: csr-acl, subnet: clus-outside, public_ip: true, key_name: scarter, role: dmvpn_spoke, tags: {Owner: scarter, network_os: ios, type: network}, user_data: 'ios-config-0001=ip route 0.0.0.0 0.0.0.0 GigabitEthernet1 dhcp' }
+acl_dict:
+  login-acl:
+    - { src_ip: 0.0.0.0/0, dst_ports: [22], proto: tcp }
+    - { src_ip: 0.0.0.0/0, dst_ports: [], proto: icmp }
+  csr-acl:
+    - { src_ip: 0.0.0.0/0, dst_ports: [22, 500, 4500], proto: udp }
+ssh_keys:
+  scarter: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDK19uD+miGdkNhTdY5MA8Yw1MT//jiOWHFUECMoyl2MygTFC/MvNDXitUR4tevwjwpcMFdQnG0l6yVAg0u44L3HftErViJILRjPg24JiBefXfCEBZTqmINYnBvgkh8uvcwzauGiQ4EeTBmzN19+S+2yhJSXfGBYt5XQJ+h7sxN7MEeVRT3CoXxWyCYKjTt7CWdUHjVU/xDeGbFxJjmAO9PTWy1+iJqSQ0OID75kfddoJUOEZFX9MoFmWGwGSj4ljb64AG5WKZvBKyrRFN3MWIZgmNY+POyuKPeNctwXdlbyDk0CGTuK3gjsH2dxDES/tXiFIpXagOeNjWN4bb49Ft5 stevenca@STEVENCA-M-202D"

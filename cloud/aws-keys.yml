@@ -1,0 +1,12 @@
+---
+- name: Create the ssh key pairs in {{ region_name }}
+  ec2_key:
+    aws_access_key: "{{ aws_access_key | default(omit) }}"
+    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+    name: "{{ key_item }}"
+    region: "{{ region_name }}"
+    key_material: '{{ ssh_key_list[key_item] }}'
+    state: present
+  with_items: "{{ ssh_key_list.keys() | default([]) }}"
+  loop_control:
+    loop_var: key_item

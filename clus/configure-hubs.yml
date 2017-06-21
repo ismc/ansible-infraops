@@ -1,0 +1,33 @@
+---
+- hosts: dmvpn_hubs
+  gather_facts: no
+  connection: local
+  vars_files:
+    - clus-vars.yml
+
+  tasks:
+    - name: Set the DMVPN Network Address
+      set_fact: dmvpn_network_address='{{ dmvpn_network_cidr | ipaddr('network') }}'
+
+    - name: Set the DMVPN Network Mask
+      set_fact: dmvpn_host_mask='{{ dmvpn_network_cidr | ipaddr('hostmask') }}'
+
+#    - debug: var=hostvars[inventory_hostname]
+
+    - name: Get IOS Version
+      ios_command:
+        provider:
+          host: "{{ inventory_hostname }}"
+          username: stevenca
+        commands: show version | inc Cisco IOS XE Software
+      register: command_results
+
+    - debug: var=command_results.stdout_lines[0]
+
+    - name: Configure as DMVPN Spoke
+      ios_config:
+        provider:
+          host: "{{ inventory_hostname }}"
+          username: stevenca
+        src: dmvpn_hub.j2
+      register: command_results
