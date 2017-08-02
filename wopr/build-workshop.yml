@@ -19,7 +19,7 @@
           - { cidr: 172.19.1.0/24, name: workshop-net1, ext_network: 75b4c48e-7b1d-4910-8bb5-f57824c95fae }
           - { cidr: 172.19.2.0/24, name: workshop-net2, ext_network: 75b4c48e-7b1d-4910-8bb5-f57824c95fae }
         instances:
-          - { name: smc-test, size: m1.medium, image: 46370095-11e1-4bff-a045-da084c12bf78, key_name: STEVENCA-M-202D, subnet: smc-net1, public_ip: true, tags: {ansible_group: login} }
+          - { name: smc-test, size: m1.medium, image: 46370095-11e1-4bff-a045-da084c12bf78, key_name: STEVENCA-M-202D, subnet: workshop-net1, public_ip: true, tags: {ansible_group: login} }
     os_flavors:
       - {name: m1.tiny, ram: 512, vcpus: 1, disk: 1, ephemeral: 0}
       - {name: m1.small, ram: 2048, vcpus: 1, disk: 20, ephemeral: 0}
@@ -61,18 +61,18 @@
         enabled: True
       with_items: "{{ projects | default([]) }}"
 
-    - include: ../cloud/os-user-roles.yml project_name="{{ item.name }}" user_list="{{ item.users }}"
-      with_items: "{{ projects | default([]) }}"
-      tags:
-        - cloud
+#    - include: ../cloud/os-user-roles.yml project_name="{{ item.name }}" user_list="{{ item.users }}"
+#      with_items: "{{ projects | default([]) }}"
+#      tags:
+#        - cloud
 
     - include: ../cloud/{{ regions[item].provider }}-region.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
       with_items: "{{ regions.keys() | default([]) }}"
       tags:
         - cloud
 
-#    - include: ../cloud/{{ regions[item].provider }}-instances.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
-#      with_items: "{{ regions.keys() | default([]) }}"
-#      tags:
-#        - cloud
+    - include: ../cloud/{{ regions[item].provider }}-instances.yml region_name="{{ item }}" region_info="{{ regions[item] }}"
+      with_items: "{{ regions.keys() | default([]) }}"
+      tags:
+        - cloud
 

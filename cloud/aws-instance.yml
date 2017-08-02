@@ -48,9 +48,9 @@
     region: "{{ region_name }}"
     instance_type: "{{ instance_data.size }}"
     instance_tags:
-      Name: instance_data.name
-      Environment: region_data.project
-      Role: instance_data.role|default(instance_data.name)
+      Name: "{{ instance_data.name }}"
+      Environment: "{{ region_data.project }}"
+      Role: "{{ instance_data.role|default(instance_data.name) }}"
     image: "{{ instance_data.image }}"
     group_id: "{{ security_group_dict[instance_data.acl] }}"
     exact_count: "{{ instance_data.count | default(1) }}"
@@ -65,8 +65,6 @@
     - aws
     - instances
 
-# - debug: var=instance_facts
-
 - name: Add {{ instance_data.name }} to Dictionary with ID {{ instance_facts.tagged_instances[0].id }}
   set_fact:
     instance_dict: "{{ instance_dict | combine( { instance_data.name: instance_facts.tagged_instances[0].id } ) }}"
@@ -78,5 +76,3 @@
     state: present
     tags: "{{ instance_data.tags }}"
   when: instance_data.tags is defined
-
-# - debug: var=instance_dict

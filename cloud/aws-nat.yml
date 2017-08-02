@@ -60,6 +60,7 @@
     subnet_id: "{{ subnet_dict[network_data.name] }}"
     source_dest_check: false
     state: present
+    delete_on_termination: true
   when: network_data.nat_instance is defined
 
 - name: Set up default route for subnet {{ network_data.name }} to instance {{ network_data.nat_instance }}

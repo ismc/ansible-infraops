@@ -6,7 +6,7 @@
   loop_control:
     loop_var: acl_item
 
-- debug: var=rule_list
+#- debug: var=rule_list
 
 - name: Create Security Group {{ acl_name }} in {{ region_name }}
   ec2_group:
@@ -21,7 +21,7 @@
     rules: "{{ rule_list }}"
   register: security_group_result
 
-- debug: var=security_group_dict
+#- debug: var=security_group_dict
 
 - name: Add {{ acl_name }} to Dictionary with ID {{ security_group_dict.group_id }}
   set_fact:

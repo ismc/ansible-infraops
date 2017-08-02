@@ -1,58 +1,55 @@
 ---
-- name: Create AWS region VPC
+- name: Create AWS VPC {{ region_data.project }} in {{ region_name }}
   ec2_vpc_net:
-    aws_access_key: "{{ aws_access_key }}"
-    aws_secret_key: "{{ aws_secret_key }}"
-    name: "{{ region_info.project }}"
-    cidr_block: "{{ region_info.cidr }}"
+    aws_access_key: "{{ aws_access_key | default(omit) }}"
+    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
+    name: "{{ region_data.project }}"
+    cidr_block: "{{ region_data.cidr }}"
     region: "{{ region_name }}"
     tags:
-      tenant: "{{ region_info.project | default(tenant_name) }}"
-    tenancy: dedicated
+      tenant: "{{ region_data.project | default(tenant_name) }}"
   register: vpc_result
   tags:
     - cloud
     - aws
-    
-- name: Create AWS region subnets
-  ec2_vpc_subnet:
-    aws_access_key: "{{ aws_access_key }}"
-    aws_secret_key: "{{ aws_secret_key }}"
-    state: "{{ tenant_network_item.state | default('present') }}"
-    vpc_id: '{{ vpc_result.vpc.id }}'
-    cidr: "{{ tenant_network_item.cidr }}"
+
+- name: Create AWS IGW for VPC {{ vpc_result.vpc.id }} in {{ region_name }}
+  ec2_vpc_igw:
+    aws_access_key: "{{ aws_access_key | default(omit) }}"
+    aws_secret_key: "{{ aws_secret_key | default(omit) }}"
     region: "{{ region_name }}"
-    az: "{{ tenant_network_item.az }}"
-    resource_tags:
-      name: "{{ tenant_network_item.state | default('tenant_network_item.cidr') }}"
-      tenant: "{{ region_info.project }}"
-  with_items: "{{ region_info.networks | default([]) }}"
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    state: present
+  register: igw_result
+
+- include: ../cloud/{{ region_data.provider }}-keys.yml ssh_key_list="{{ ssh_keys }}"
+  tags:
+    - cloud
+
+- include: ../cloud/{{ region_data.provider }}-subnet.yml network_data="{{ tenant_network_item }}"
+  with_items: "{{ region_data.networks | default([]) }}"
   loop_control:
     loop_var: tenant_network_item
   tags:
     - cloud
-    - aws  
 
-- include: ../cloud/{{ region_info.provider }}-vpn.yml project_name="{{ region_info.project }}" vpn_info="{{ vpn_item }}"
-  with_items: "{{ region_info.vpns | default([]) }}"
+- include: ../cloud/{{ region_data.provider }}-acls.yml acl_name="{{ acl }}" acl_list="{{ acl_data[acl] }}"
+  with_items: "{{ region_data.acl_list | default([]) }}"
   loop_control:
-    loop_var: vpn_item
+    loop_var: acl
   tags:
     - cloud
-    - aws  
 
-#- name: Set up outside subnet route table
-#  ec2_vpc_route_table:
-#    vpc_id: '{{ vpc.vpc_id }}'
-#    region: '{{ cloud_info["aws"].region }}'
-#    tags:
-#      Name: CSR (Public)
-#      Owner: stevenca
-#      Environment: '{{ cloud_tag }}'
-#    subnets:
-#      - '{{ outside_subnet.subnet.id }}'
-#    routes:
-#      - dest: 0.0.0.0/0
-#        gateway_id: "{{ vpc.igw_id }}"
-#  register: public_route_table
-#  when: outside_subnet.changed
+- include: ../cloud/{{ region_data.provider }}-instance.yml instance_data="{{ instance_item }}"
+  with_items: "{{ region_data.instances | default([]) }}"
+  loop_control:
+    loop_var: instance_item
+  tags:
+    - cloud
+
+- include: ../cloud/{{ region_data.provider }}-nat.yml network_data="{{ tenant_network_item }}"
+  with_items: "{{ region_data.networks | default([]) }}"
+  loop_control:
+    loop_var: tenant_network_item
+  tags:
+    - cloud

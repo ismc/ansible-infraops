@@ -7,8 +7,6 @@
       "tag:tenant": "{{ tenant_name }}"
     region: us-east-2
   register: vpc_result
-  
-# - debug: var=vpc_result
     
 - name: Create subnet
   ec2_vpc_subnet:
@@ -25,20 +23,4 @@
   with_items: "{{ tenant_info.networks | default([]) }}"
   loop_control:
     loop_var: tenant_network_item
-    
 
-#- name: Set up outside subnet route table
-#  ec2_vpc_route_table:
-#    vpc_id: '{{ vpc.vpc_id }}'
-#    region: '{{ cloud_info["aws"].region }}'
-#    tags:
-#      Name: CSR (Public)
-#      Owner: stevenca
-#      Environment: '{{ cloud_tag }}'
-#    subnets:
-#      - '{{ outside_subnet.subnet.id }}'
-#    routes:
-#      - dest: 0.0.0.0/0
-#        gateway_id: "{{ vpc.igw_id }}"
-#  register: public_route_table
-#  when: outside_subnet.changed

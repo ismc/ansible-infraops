@@ -16,8 +16,6 @@
     - aws
     - subnet
 
-
-
 - name: Set up subnet route table
   ec2_vpc_route_table:
     aws_access_key: "{{ aws_access_key | default(omit) }}"
@@ -40,5 +38,3 @@
 - name: Add Instance ID to Dictionary
   set_fact:
     subnet_dict: "{{ subnet_dict | combine( { network_data.name: subnet_result.subnet.id } ) }}"
-
-- debug: var=subnet_dict
